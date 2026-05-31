@@ -28,7 +28,7 @@
 
 const CONFIG = {
   github: {
-    token: '',                    // Your GitHub Personal Access Token (see README or config comments)
+    token: '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',
     owner: 'pandarenstudios',    // Your GitHub username
     repo:  'draw-and-share',     // The submissions repository name
   }
