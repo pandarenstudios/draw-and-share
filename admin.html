@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Draw &amp; Share</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="site-title">Draw <span>&amp; Share</span> — <span style="color:var(--accent2)">Admin</span></div>
+    <a href="index.html" style="color:var(--muted);font-size:.85rem;text-decoration:none;">
+      <i class="bi bi-arrow-left"></i> Back to site
+    </a>
+  </div>
+</header>
+
+<main style="max-width:1100px;margin:auto;padding:24px 16px">
+
+  <!-- Login -->
+  <div class="admin-login" id="login-section">
+    <h2><i class="bi bi-shield-lock"></i> Admin Access</h2>
+    <p>Enter your GitHub Personal Access Token to manage submissions.<br>
+       The token needs <code>issues: read &amp; write</code> on the submissions repo.</p>
+    <input type="password" id="token-input" placeholder="ghp_…" autocomplete="off">
+    <button class="btn-primary" style="width:100%;padding:10px" id="login-btn">Sign in</button>
+    <div class="submit-feedback hidden" id="login-feedback"></div>
+  </div>
+
+  <!-- Panel -->
+  <div class="admin-panel hidden" id="admin-panel">
+    <div class="admin-panel-header">
+      <h2><i class="bi bi-inbox"></i> Pending Submissions</h2>
+      <div style="display:flex;gap:10px;align-items:center">
+        <span id="submission-count" style="color:var(--muted);font-size:.85rem"></span>
+        <button class="refresh-btn" id="admin-refresh"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+        <button class="btn-ghost" id="logout-btn" style="font-size:.8rem">Sign out</button>
+      </div>
+    </div>
+    <div class="submission-grid" id="submission-grid">
+      <div class="admin-message">Loading submissions…</div>
+    </div>
+  </div>
+
+</main>
+
+<script src="config.js"></script>
+<script>
+'use strict';
+
+let adminToken = sessionStorage.getItem('admin_token') || '';
+
+if (adminToken) tryLogin(adminToken);
+
+document.getElementById('login-btn').addEventListener('click', () => {
+  const t = document.getElementById('token-input').value.trim();
+  if (!t) return;
+  tryLogin(t);
+});
+
+document.getElementById('token-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('login-btn').click();
+});
+
+document.getElementById('logout-btn').addEventListener('click', () => {
+  adminToken = '';
+  sessionStorage.removeItem('admin_token');
+  document.getElementById('admin-panel').classList.add('hidden');
+  document.getElementById('login-section').classList.remove('hidden');
+  document.getElementById('token-input').value = '';
+});
+
+document.getElementById('admin-refresh').addEventListener('click', loadSubmissions);
+
+async function tryLogin(token) {
+  const fb = document.getElementById('login-feedback');
+  fb.className = 'submit-feedback hidden';
+
+  try {
+    // Validate token by fetching the authenticated user
+    const res = await fetch('https://api.github.com/user', {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.v3+json' },
+    });
+    if (!res.ok) throw new Error('Invalid token or no access.');
+    const user = await res.json();
+
+    adminToken = token;
+    sessionStorage.setItem('admin_token', token);
+
+    document.getElementById('login-section').classList.add('hidden');
+    document.getElementById('admin-panel').classList.remove('hidden');
+    loadSubmissions();
+  } catch (err) {
+    fb.className = 'submit-feedback err';
+    fb.textContent = `Login failed: ${err.message}`;
+  }
+}
+
+async function loadSubmissions() {
+  const grid = document.getElementById('submission-grid');
+  const { owner, repo } = CONFIG.github;
+
+  if (!owner || !repo) {
+    grid.innerHTML = '<div class="admin-message">config.js is not set up (owner / repo missing).</div>';
+    return;
+  }
+
+  grid.innerHTML = '<div class="admin-message">Loading…</div>';
+
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/issues?labels=pending&state=open&per_page=100`,
+      { headers: { Authorization: `Bearer ${adminToken}`, Accept: 'application/vnd.github.v3+json' } }
+    );
+    if (!res.ok) throw new Error(`GitHub API ${res.status}`);
+    const issues = await res.json();
+
+    document.getElementById('submission-count').textContent =
+      `${issues.length} pending`;
+
+    grid.innerHTML = '';
+
+    if (!issues.length) {
+      grid.innerHTML = '<div class="admin-message">No pending submissions — all caught up!</div>';
+      return;
+    }
+
+    for (const issue of issues) {
+      try {
+        const data = JSON.parse(issue.body);
+        grid.appendChild(makeCard(issue, data));
+      } catch {
+        // Issue body isn't valid submission JSON — skip silently
+      }
+    }
+
+    if (!grid.children.length) {
+      grid.innerHTML = '<div class="admin-message">No valid pending submissions found.</div>';
+    }
+  } catch (err) {
+    grid.innerHTML = `<div class="admin-message">Error: ${esc(err.message)}</div>`;
+  }
+}
+
+function makeCard(issue, data) {
+  const date = new Date(issue.created_at).toLocaleDateString('en-US', {
+    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+
+  const card = document.createElement('div');
+  card.className = 'submission-card';
+  card.id = `card-${issue.number}`;
+  card.innerHTML = `
+    <img src="${esc(data.image)}" alt="${esc(data.title)}" loading="lazy">
+    <div class="submission-card-body">
+      <strong>${esc(data.title)}</strong>
+      <span>by ${esc(data.creator)}</span>
+      <span style="margin-top:4px;font-size:.72rem;color:var(--muted)">Submitted ${date}</span>
+      <div class="submission-actions" style="margin-top:8px">
+        <button class="btn-approve" data-id="${issue.number}">
+          <i class="bi bi-check-lg"></i> Approve
+        </button>
+        <button class="btn-reject" data-id="${issue.number}">
+          <i class="bi bi-x-lg"></i> Reject
+        </button>
+      </div>
+    </div>
+  `;
+
+  card.querySelector('.btn-approve').addEventListener('click', () => handleAction(issue.number, 'approve'));
+  card.querySelector('.btn-reject').addEventListener('click', () => handleAction(issue.number, 'reject'));
+
+  return card;
+}
+
+async function handleAction(issueNumber, action) {
+  const card = document.getElementById(`card-${issueNumber}`);
+  const approveBtn = card.querySelector('.btn-approve');
+  const rejectBtn  = card.querySelector('.btn-reject');
+  const { owner, repo } = CONFIG.github;
+
+  approveBtn.disabled = true;
+  rejectBtn.disabled  = true;
+  approveBtn.textContent = action === 'approve' ? 'Approving…' : 'Approve';
+  rejectBtn.textContent  = action === 'reject'  ? 'Rejecting…' : 'Reject';
+
+  try {
+    if (action === 'approve') {
+      // Add 'approved' label
+      await ghRequest(`/repos/${owner}/${repo}/issues/${issueNumber}/labels`, 'POST',
+        { labels: ['approved'] });
+      // Remove 'pending' label
+      await ghRequest(`/repos/${owner}/${repo}/issues/${issueNumber}/labels/pending`, 'DELETE');
+    } else {
+      // Close issue (reject — no 'approved' label added)
+      await ghRequest(`/repos/${owner}/${repo}/issues/${issueNumber}`, 'PATCH',
+        { state: 'closed' });
+    }
+
+    // Animate removal
+    card.style.transition = 'opacity .4s, transform .4s';
+    card.style.opacity    = '0';
+    card.style.transform  = 'scale(.95)';
+    setTimeout(() => {
+      card.remove();
+      updateCount();
+    }, 420);
+  } catch (err) {
+    alert(`Action failed: ${err.message}`);
+    approveBtn.disabled = false;
+    rejectBtn.disabled  = false;
+    approveBtn.textContent = 'Approve';
+    rejectBtn.textContent  = 'Reject';
+  }
+}
+
+function updateCount() {
+  const remaining = document.querySelectorAll('.submission-card').length;
+  document.getElementById('submission-count').textContent = `${remaining} pending`;
+  if (!remaining) {
+    document.getElementById('submission-grid').innerHTML =
+      '<div class="admin-message">All done — no more pending submissions!</div>';
+  }
+}
+
+async function ghRequest(path, method, body) {
+  const res = await fetch(`https://api.github.com${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${adminToken}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/vnd.github.v3+json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok && res.status !== 204) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `GitHub API error (${res.status})`);
+  }
+  return res;
+}
+
+function esc(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+</script>
+</body>
+</html>

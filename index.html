@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Draw &amp; Share</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Bootstrap Icons for crisp tool icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="site-title">Draw <span>&amp; Share</span></div>
+    <nav>
+      <button class="tab-btn active" data-tab="draw">
+        <i class="bi bi-pencil-fill"></i> Draw
+      </button>
+      <button class="tab-btn" data-tab="gallery">
+        <i class="bi bi-grid-fill"></i> Gallery
+      </button>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- ══ DRAW TAB ══════════════════════════════════════════════════════════ -->
+  <section id="draw-tab" class="tab-pane active">
+    <div class="draw-layout">
+
+      <!-- Toolbar -->
+      <aside class="toolbar">
+
+        <div class="tool-group">
+          <div class="tool-group-label">Tools</div>
+          <div class="tool-grid">
+            <button class="tool-btn active" data-tool="pencil"        title="Pencil"><i class="bi bi-pencil"></i></button>
+            <button class="tool-btn"        data-tool="brush"         title="Brush"><i class="bi bi-brush"></i></button>
+            <button class="tool-btn"        data-tool="eraser"        title="Eraser"><i class="bi bi-eraser"></i></button>
+            <button class="tool-btn"        data-tool="fill"          title="Fill"><i class="bi bi-paint-bucket"></i></button>
+            <button class="tool-btn"        data-tool="eyedropper"    title="Eyedropper"><i class="bi bi-eyedropper"></i></button>
+            <button class="tool-btn"        data-tool="line"          title="Line"><i class="bi bi-slash-lg"></i></button>
+            <button class="tool-btn"        data-tool="rect"          title="Rectangle"><i class="bi bi-square"></i></button>
+            <button class="tool-btn"        data-tool="rect-fill"     title="Filled Rectangle"><i class="bi bi-square-fill"></i></button>
+            <button class="tool-btn"        data-tool="ellipse"       title="Ellipse"><i class="bi bi-circle"></i></button>
+            <button class="tool-btn"        data-tool="ellipse-fill"  title="Filled Ellipse"><i class="bi bi-circle-fill"></i></button>
+          </div>
+        </div>
+
+        <div class="tool-group">
+          <div class="tool-group-label">Size</div>
+          <div class="size-row">
+            <button class="size-btn"        data-size="1">1</button>
+            <button class="size-btn"        data-size="3">3</button>
+            <button class="size-btn active" data-size="5">5</button>
+            <button class="size-btn"        data-size="10">10</button>
+            <button class="size-btn"        data-size="20">20</button>
+          </div>
+        </div>
+
+        <div class="tool-group">
+          <div class="tool-group-label">Colors</div>
+          <div class="color-preview">
+            <div class="color-chip bg" id="bg-chip" title="Background (right-click palette to set)"></div>
+            <div class="color-chip fg" id="fg-chip" title="Foreground (left-click palette to set)"></div>
+            <button class="swap-btn" id="swap-colors" title="Swap colors">⇄</button>
+          </div>
+          <input type="color" id="custom-color-input" value="#000000" title="Custom color">
+          <div class="palette" id="palette"></div>
+        </div>
+
+        <div class="action-group">
+          <div class="tool-group-label">Actions</div>
+          <button class="act-btn" id="undo-btn" title="Ctrl+Z">
+            <i class="bi bi-arrow-counterclockwise"></i> Undo
+          </button>
+          <button class="act-btn" id="redo-btn" title="Ctrl+Y">
+            <i class="bi bi-arrow-clockwise"></i> Redo
+          </button>
+          <button class="act-btn" id="clear-btn">
+            <i class="bi bi-trash"></i> Clear
+          </button>
+          <button class="act-btn" id="save-btn" title="Ctrl+S">
+            <i class="bi bi-download"></i> Save
+          </button>
+          <button class="act-btn submit" id="submit-btn">
+            <i class="bi bi-send-fill"></i> Submit
+          </button>
+        </div>
+
+      </aside>
+
+      <!-- Canvas -->
+      <div class="canvas-area">
+        <div class="canvas-wrap" id="canvas-wrap">
+          <canvas id="main-canvas"    width="640" height="480"></canvas>
+          <canvas id="overlay-canvas" width="640" height="480"></canvas>
+        </div>
+        <div class="status-bar">
+          <span id="cursor-coords">—, —</span>
+          <span id="active-tool-name">Pencil · size 5</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══ GALLERY TAB ═══════════════════════════════════════════════════════ -->
+  <section id="gallery-tab" class="tab-pane">
+    <div class="gallery-header">
+      <div>
+        <h2>Approved Creations</h2>
+        <div class="gallery-subtitle">Only manually approved works are shown here.</div>
+      </div>
+      <button class="refresh-btn" id="refresh-btn">
+        <i class="bi bi-arrow-clockwise"></i> Refresh
+      </button>
+    </div>
+    <div class="gallery-grid" id="gallery-grid">
+      <div class="gallery-message">Switch to the Gallery tab to load creations.</div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ══ SUBMIT MODAL ══════════════════════════════════════════════════════════ -->
+<div class="modal-backdrop hidden" id="submit-modal">
+  <div class="modal">
+    <h2><i class="bi bi-send-fill"></i> Submit Your Creation</h2>
+    <div class="modal-preview">
+      <img id="preview-img" src="" alt="Your drawing">
+    </div>
+    <div class="field">
+      <label for="art-title">Title</label>
+      <input type="text" id="art-title" placeholder="Name your creation…" maxlength="100" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="creator-name">Your name</label>
+      <input type="text" id="creator-name" placeholder="Enter your name…" maxlength="60" autocomplete="off">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost" id="cancel-btn">Cancel</button>
+      <button class="btn-primary" id="confirm-btn">Submit for Review</button>
+    </div>
+    <div class="submit-feedback hidden" id="submit-feedback"></div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
