@@ -80,12 +80,14 @@ async function tryLogin(token) {
   fb.className = 'submit-feedback hidden';
 
   try {
-    // Validate token by fetching the authenticated user
-    const res = await fetch('https://api.github.com/user', {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.v3+json' },
-    });
-    if (!res.ok) throw new Error('Invalid token or no access.');
-    const user = await res.json();
+    // Validate token by checking access to the repo's issues
+    const { owner, repo } = CONFIG.github;
+    const res = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/issues?per_page=1`,
+      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.v3+json' } }
+    );
+    if (!res.ok) throw new Error('Invalid token or no access to the repository.');
+    const user = { login: owner };
 
     adminToken = token;
     sessionStorage.setItem('admin_token', token);
