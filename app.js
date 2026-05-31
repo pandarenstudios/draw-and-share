@@ -525,8 +525,8 @@ async function loadGallery() {
 
   try {
     const res = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/issues?labels=approved&state=open&per_page=100`,
-      { headers: { Accept: 'application/vnd.github.v3+json' } }
+      `https://api.github.com/repos/${owner}/${repo}/issues?labels=approved&state=open&per_page=100&_=${Date.now()}`,
+      { headers: { Accept: 'application/vnd.github.v3+json', 'Cache-Control': 'no-cache' } }
     );
     if (!res.ok) throw new Error(`GitHub API ${res.status}`);
     const issues = await res.json();

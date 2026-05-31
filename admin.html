@@ -112,8 +112,8 @@ async function loadSubmissions() {
 
   try {
     const res = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/issues?labels=pending&state=open&per_page=100`,
-      { headers: { Authorization: `Bearer ${adminToken}`, Accept: 'application/vnd.github.v3+json' } }
+      `https://api.github.com/repos/${owner}/${repo}/issues?labels=pending&state=open&per_page=100&_=${Date.now()}`,
+      { headers: { Authorization: `Bearer ${adminToken}`, Accept: 'application/vnd.github.v3+json', 'Cache-Control': 'no-cache' } }
     );
     if (!res.ok) throw new Error(`GitHub API ${res.status}`);
     const issues = await res.json();
