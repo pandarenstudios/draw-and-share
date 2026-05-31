@@ -484,22 +484,17 @@ function setFeedback(type, msg) {
   el.textContent = msg;
 }
 
-// ─── GitHub submission ────────────────────────────────────────────────────────
+// ─── GitHub submission (via Cloudflare Worker proxy) ─────────────────────────
 async function postSubmission(title, creator, image) {
-  const { token, owner, repo } = CONFIG.github;
-  if (!token || !owner || !repo) {
+  if (!CONFIG.workerUrl) {
     throw new Error('Submissions are not configured yet. Contact the site admin.');
   }
 
   const body = JSON.stringify({ title, creator, image, submitted: new Date().toISOString() });
 
-  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {
+  const res = await fetch(CONFIG.workerUrl, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/vnd.github.v3+json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       title: `[Submission] ${title} — by ${creator}`,
       body,
@@ -509,7 +504,7 @@ async function postSubmission(title, creator, image) {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `GitHub API error (${res.status})`);
+    throw new Error(err.message || `Worker error (${res.status})`);
   }
 }
 
