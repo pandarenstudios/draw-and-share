@@ -6,6 +6,20 @@
   <title>Admin — Draw &amp; Share</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    .admin-tabs { display:flex; gap:2px; margin-bottom:20px; border-bottom:2px solid var(--border,#333); }
+    .admin-tab  { background:none; border:none; border-bottom:3px solid transparent; margin-bottom:-2px;
+                  padding:8px 18px; cursor:pointer; color:var(--muted,#888); font-size:.9rem;
+                  transition:color .15s, border-color .15s; }
+    .admin-tab:hover  { color:var(--fg,#fff); }
+    .admin-tab.active { color:var(--accent,#7c6aff); border-bottom-color:var(--accent,#7c6aff); font-weight:600; }
+    .btn-revoke   { background:#b45309; color:#fff; border:none; border-radius:6px; padding:6px 12px;
+                    font-size:.8rem; cursor:pointer; display:flex; align-items:center; gap:4px; }
+    .btn-revoke:hover   { background:#92400e; }
+    .btn-reapprove      { background:#15803d; color:#fff; border:none; border-radius:6px; padding:6px 12px;
+                          font-size:.8rem; cursor:pointer; display:flex; align-items:center; gap:4px; }
+    .btn-reapprove:hover { background:#166534; }
+  </style>
 </head>
 <body>
 
@@ -33,8 +47,18 @@
   <!-- Panel -->
   <div class="admin-panel hidden" id="admin-panel">
     <div class="admin-panel-header">
-      <h2><i class="bi bi-inbox"></i> Pending Submissions</h2>
-      <div style="display:flex;gap:10px;align-items:center">
+      <div class="admin-tabs">
+        <button class="admin-tab active" data-tab="pending">
+          <i class="bi bi-inbox"></i> Pending
+        </button>
+        <button class="admin-tab" data-tab="approved">
+          <i class="bi bi-check-circle"></i> Approved
+        </button>
+        <button class="admin-tab" data-tab="revoked">
+          <i class="bi bi-slash-circle"></i> Revoked
+        </button>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px">
         <span id="submission-count" style="color:var(--muted);font-size:.85rem"></span>
         <button class="refresh-btn" id="admin-refresh"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
         <button class="btn-ghost" id="logout-btn" style="font-size:.8rem">Sign out</button>
@@ -51,7 +75,8 @@
 <script>
 'use strict';
 
-let adminToken = sessionStorage.getItem('admin_token') || '';
+let adminToken  = sessionStorage.getItem('admin_token') || '';
+let currentTab  = 'pending';
 
 if (adminToken) tryLogin(adminToken);
 
@@ -73,7 +98,22 @@ document.getElementById('logout-btn').addEventListener('click', () => {
   document.getElementById('token-input').value = '';
 });
 
-document.getElementById('admin-refresh').addEventListener('click', loadSubmissions);
+document.getElementById('admin-refresh').addEventListener('click', () => loadTab(currentTab));
+
+document.querySelectorAll('.admin-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.admin-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTab = btn.dataset.tab;
+    loadTab(currentTab);
+  });
+});
+
+function loadTab(tab) {
+  if (tab === 'pending')  loadPending();
+  if (tab === 'approved') loadApproved();
+  if (tab === 'revoked')  loadRevoked();
+}
 
 async function tryLogin(token) {
   const fb = document.getElementById('login-feedback');
@@ -100,14 +140,32 @@ async function tryLogin(token) {
 
     document.getElementById('login-section').classList.add('hidden');
     document.getElementById('admin-panel').classList.remove('hidden');
-    loadSubmissions();
+    loadPending();
   } catch (err) {
     fb.className = 'submit-feedback err';
     fb.textContent = `Login failed: ${err.message}`;
   }
 }
 
-async function loadSubmissions() {
+async function loadPending() {
+  await loadIssues('pending', 'labels=pending&state=open', 'pending',
+    'No pending submissions — all caught up!',
+    'No valid pending submissions found.');
+}
+
+async function loadApproved() {
+  await loadIssues('approved', 'labels=approved&state=open', 'approved',
+    'No approved creations yet.',
+    'No valid approved creations found.');
+}
+
+async function loadRevoked() {
+  await loadIssues('revoked', 'labels=revoked&state=open', 'revoked',
+    'No revoked creations.',
+    'No valid revoked creations found.');
+}
+
+async function loadIssues(countLabel, query, mode, emptyMsg, invalidMsg) {
   const grid = document.getElementById('submission-grid');
 
   if (!CONFIG.workerUrl) {
@@ -119,43 +177,67 @@ async function loadSubmissions() {
 
   try {
     const res = await fetch(
-      `${CONFIG.workerUrl}admin/issues?labels=pending&state=open&per_page=100&_=${Date.now()}`,
+      `${CONFIG.workerUrl}admin/issues?${query}&per_page=100&_=${Date.now()}`,
       { headers: { 'X-Admin-Token': adminToken } }
     );
     if (!res.ok) throw new Error(`GitHub API ${res.status}`);
     const issues = await res.json();
 
     document.getElementById('submission-count').textContent =
-      `${issues.length} pending`;
+      `${issues.length} ${countLabel}`;
 
     grid.innerHTML = '';
 
     if (!issues.length) {
-      grid.innerHTML = '<div class="admin-message">No pending submissions — all caught up!</div>';
+      grid.innerHTML = `<div class="admin-message">${emptyMsg}</div>`;
       return;
     }
 
     for (const issue of issues) {
       try {
         const data = JSON.parse(issue.body);
-        grid.appendChild(makeCard(issue, data));
+        grid.appendChild(makeCard(issue, data, mode));
       } catch {
-        // Issue body isn't valid submission JSON — skip silently
+        // skip malformed issue bodies
       }
     }
 
     if (!grid.children.length) {
-      grid.innerHTML = '<div class="admin-message">No valid pending submissions found.</div>';
+      grid.innerHTML = `<div class="admin-message">${invalidMsg}</div>`;
     }
   } catch (err) {
     grid.innerHTML = `<div class="admin-message">Error: ${esc(err.message)}</div>`;
   }
 }
 
-function makeCard(issue, data) {
+function makeCard(issue, data, mode) {
   const date = new Date(issue.created_at).toLocaleDateString('en-US', {
     year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
   });
+
+  let actions = '';
+  if (mode === 'pending') {
+    actions = `
+      <button class="btn-approve" data-action="approve">
+        <i class="bi bi-check-lg"></i> Approve
+      </button>
+      <button class="btn-reject" data-action="reject">
+        <i class="bi bi-x-lg"></i> Reject
+      </button>`;
+  } else if (mode === 'approved') {
+    actions = `
+      <button class="btn-revoke" data-action="revoke">
+        <i class="bi bi-slash-circle"></i> Revoke
+      </button>`;
+  } else if (mode === 'revoked') {
+    actions = `
+      <button class="btn-reapprove" data-action="reapprove">
+        <i class="bi bi-check-lg"></i> Re-approve
+      </button>
+      <button class="btn-reject" data-action="delete">
+        <i class="bi bi-trash"></i> Delete
+      </button>`;
+  }
 
   const card = document.createElement('div');
   card.className = 'submission-card';
@@ -166,63 +248,67 @@ function makeCard(issue, data) {
       <strong>${esc(data.title)}</strong>
       <span>by ${esc(data.creator)}</span>
       <span style="margin-top:4px;font-size:.72rem;color:var(--muted)">Submitted ${date}</span>
-      <div class="submission-actions" style="margin-top:8px">
-        <button class="btn-approve" data-id="${issue.number}">
-          <i class="bi bi-check-lg"></i> Approve
-        </button>
-        <button class="btn-reject" data-id="${issue.number}">
-          <i class="bi bi-x-lg"></i> Reject
-        </button>
-      </div>
+      <div class="submission-actions" style="margin-top:8px">${actions}</div>
     </div>
   `;
 
-  card.querySelector('.btn-approve').addEventListener('click', () => handleAction(issue.number, 'approve'));
-  card.querySelector('.btn-reject').addEventListener('click', () => handleAction(issue.number, 'reject'));
+  card.querySelectorAll('button[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => handleAction(issue.number, btn.dataset.action));
+  });
 
   return card;
 }
 
 async function handleAction(issueNumber, action) {
   const card = document.getElementById(`card-${issueNumber}`);
-  const approveBtn = card.querySelector('.btn-approve');
-  const rejectBtn  = card.querySelector('.btn-reject');
-  approveBtn.disabled = true;
-  rejectBtn.disabled  = true;
-  approveBtn.textContent = action === 'approve' ? 'Approving…' : 'Approve';
-  rejectBtn.textContent  = action === 'reject'  ? 'Rejecting…' : 'Reject';
+  const btns = [...card.querySelectorAll('button[data-action]')];
+  const activeBtn = btns.find(b => b.dataset.action === action);
+
+  const origTexts = btns.map(b => b.innerHTML);
+  btns.forEach(b => b.disabled = true);
+  if (activeBtn) {
+    const labels = { approve: 'Approving…', reject: 'Rejecting…', revoke: 'Revoking…', reapprove: 'Re-approving…', delete: 'Deleting…' };
+    activeBtn.textContent = labels[action] || '…';
+  }
 
   try {
     if (action === 'approve') {
       await ghRequest(`/issues/${issueNumber}/labels`, 'POST', { labels: ['approved'] });
       await ghRequest(`/issues/${issueNumber}/labels/pending`, 'DELETE');
-    } else {
+    } else if (action === 'reject') {
+      await ghRequest(`/issues/${issueNumber}/labels`, 'POST', { labels: ['revoked'] });
+      await ghRequest(`/issues/${issueNumber}/labels/pending`, 'DELETE');
+    } else if (action === 'delete') {
       await ghRequest(`/issues/${issueNumber}`, 'PATCH', { state: 'closed' });
+    } else if (action === 'revoke') {
+      await ghRequest(`/issues/${issueNumber}/labels`, 'POST', { labels: ['revoked'] });
+      await ghRequest(`/issues/${issueNumber}/labels/approved`, 'DELETE');
+    } else if (action === 'reapprove') {
+      await ghRequest(`/issues/${issueNumber}/labels`, 'POST', { labels: ['approved'] });
+      await ghRequest(`/issues/${issueNumber}/labels/revoked`, 'DELETE');
     }
 
-    // Animate removal
     card.style.transition = 'opacity .4s, transform .4s';
     card.style.opacity    = '0';
     card.style.transform  = 'scale(.95)';
-    setTimeout(() => {
-      card.remove();
-      updateCount();
-    }, 420);
+    setTimeout(() => { card.remove(); updateCount(); }, 420);
   } catch (err) {
     alert(`Action failed: ${err.message}`);
-    approveBtn.disabled = false;
-    rejectBtn.disabled  = false;
-    approveBtn.textContent = 'Approve';
-    rejectBtn.textContent  = 'Reject';
+    btns.forEach((b, i) => { b.disabled = false; b.innerHTML = origTexts[i]; });
   }
 }
 
 function updateCount() {
   const remaining = document.querySelectorAll('.submission-card').length;
-  document.getElementById('submission-count').textContent = `${remaining} pending`;
+  document.getElementById('submission-count').textContent = `${remaining} ${currentTab}`;
   if (!remaining) {
+    const msgs = {
+      pending:  'All done — no more pending submissions!',
+      approved: 'No approved creations.',
+      revoked:  'No revoked creations.',
+    };
     document.getElementById('submission-grid').innerHTML =
-      '<div class="admin-message">All done — no more pending submissions!</div>';
+      `<div class="admin-message">${msgs[currentTab]}</div>`;
   }
 }
 
