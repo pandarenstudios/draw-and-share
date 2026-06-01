@@ -123,13 +123,16 @@
 
       <!-- Canvas -->
       <div class="canvas-area">
-        <div class="canvas-wrap" id="canvas-wrap">
-          <canvas id="main-canvas"    width="640" height="480"></canvas>
-          <canvas id="overlay-canvas" width="640" height="480"></canvas>
+        <div class="canvas-scroll">
+          <div class="canvas-wrap" id="canvas-wrap">
+            <canvas id="main-canvas"    width="640" height="480"></canvas>
+            <canvas id="overlay-canvas" width="640" height="480"></canvas>
+          </div>
         </div>
         <div class="status-bar">
           <span id="cursor-coords">—, —</span>
           <span id="active-tool-name">Pencil · size 5</span>
+          <span id="canvas-dims">640 × 480</span>
         </div>
       </div>
 

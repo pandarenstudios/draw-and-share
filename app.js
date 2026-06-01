@@ -446,6 +446,7 @@ function applyResize(w, h, sizeKey) {
   S.redoStack = [];
   pushUndo();
   currentSize = sizeKey;
+  document.getElementById('canvas-dims').textContent = `${w} × ${h}`;
 }
 
 // Keyboard shortcuts
