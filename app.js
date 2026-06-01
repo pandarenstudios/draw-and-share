@@ -589,31 +589,41 @@ function makeCard(data, isoDate) {
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 const lightbox = document.getElementById('lightbox');
 
-const lightboxZoom  = document.getElementById('lightbox-zoom');
 const lightboxLabel = document.getElementById('lightbox-zoom-label');
 const lightboxImg   = document.getElementById('lightbox-img');
 const lightboxInner = document.querySelector('.lightbox-inner');
-const BASE_WIDTH    = 1290;
+const BASE_WIDTH    = 645;
+const ZOOM_STEP     = 0.25;
+const ZOOM_MIN      = 0.25;
+const ZOOM_MAX      = 4;
+let   zoomLevel     = 1;
 
 document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
 lightbox.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
 
-lightboxZoom.addEventListener('input', () => {
-  const pct = parseInt(lightboxZoom.value);
-  const w   = Math.min(BASE_WIDTH * pct / 100, window.innerWidth * 0.98);
+document.getElementById('lightbox-zoom-out').addEventListener('click', () => setZoom(zoomLevel - ZOOM_STEP));
+document.getElementById('lightbox-zoom-in' ).addEventListener('click', () => setZoom(zoomLevel + ZOOM_STEP));
+
+function setZoom(level) {
+  zoomLevel = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, level));
+  const w   = Math.min(BASE_WIDTH * zoomLevel, window.innerWidth * 0.98);
   lightboxInner.style.width = w + 'px';
-  lightboxLabel.textContent = pct + '%';
-});
+  lightboxLabel.textContent = Math.round(zoomLevel * 100) + '%';
+  document.getElementById('lightbox-zoom-out').disabled = zoomLevel <= ZOOM_MIN;
+  document.getElementById('lightbox-zoom-in' ).disabled = zoomLevel >= ZOOM_MAX;
+}
 
 function openLightbox(src, title, meta) {
   lightboxImg.src = src;
   lightboxImg.alt = title;
   document.getElementById('lightbox-title').textContent = title;
   document.getElementById('lightbox-meta').textContent  = meta;
-  lightboxZoom.value        = 100;
+  zoomLevel = 1;
   lightboxInner.style.width = '';
   lightboxLabel.textContent = '100%';
+  document.getElementById('lightbox-zoom-out').disabled = false;
+  document.getElementById('lightbox-zoom-in' ).disabled = false;
   lightbox.classList.remove('hidden');
   lightbox.scrollTop = 0;
 }

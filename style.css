@@ -699,9 +699,48 @@ main { max-width: 1440px; margin: auto; padding: 16px; }
   overflow: auto;
 }
 
+.lightbox-controls {
+  position: absolute;
+  top: 16px; right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0,0,0,.6);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 8px;
+  padding: 6px 10px;
+  backdrop-filter: blur(8px);
+  z-index: 10;
+  color: #fff;
+  font-size: .85rem;
+}
+
+.lightbox-controls i { font-size: .9rem; color: rgba(255,255,255,.7); }
+
+.lightbox-controls button {
+  width: 26px; height: 26px;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 5px;
+  color: #fff;
+  font-size: 1.1rem;
+  line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+
+.lightbox-controls button:hover { background: var(--accent); }
+
+#lightbox-zoom-label {
+  min-width: 38px;
+  text-align: center;
+  font-size: .8rem;
+  color: rgba(255,255,255,.85);
+}
+
 .lightbox-inner {
   position: relative;
-  width: min(96vw, 1290px);
+  width: min(96vw, 645px);
   margin: 20px auto;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -757,28 +796,6 @@ main { max-width: 1440px; margin: auto; padding: 16px; }
   margin-top: 3px;
 }
 
-.lightbox-zoom {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.lightbox-zoom input[type=range] {
-  flex: 1;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-
-.lightbox-zoom i { color: var(--muted); font-size: .9rem; }
-
-#lightbox-zoom-label {
-  font-size: .78rem;
-  color: var(--muted);
-  width: 38px;
-  text-align: right;
-  flex-shrink: 0;
-}
 
 /* ── Utilities ────────────────────────────────────────────────────────────── */
 .hidden { display: none !important; }

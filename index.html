@@ -150,6 +150,12 @@
 
 <!-- Gallery lightbox -->
 <div class="modal-backdrop hidden" id="lightbox">
+  <div class="lightbox-controls">
+    <i class="bi bi-search"></i>
+    <button id="lightbox-zoom-out" title="Zoom out">−</button>
+    <span id="lightbox-zoom-label">100%</span>
+    <button id="lightbox-zoom-in" title="Zoom in">+</button>
+  </div>
   <div class="lightbox-inner">
     <button class="lightbox-close" id="lightbox-close" title="Close">
       <i class="bi bi-x-lg"></i>
@@ -160,12 +166,6 @@
     <div class="lightbox-info">
       <div class="lightbox-title" id="lightbox-title"></div>
       <div class="lightbox-meta"  id="lightbox-meta"></div>
-      <div class="lightbox-zoom">
-        <i class="bi bi-zoom-out"></i>
-        <input type="range" id="lightbox-zoom" min="25" max="300" value="100" step="5">
-        <i class="bi bi-zoom-in"></i>
-        <span id="lightbox-zoom-label">100%</span>
-      </div>
     </div>
   </div>
 </div>
