@@ -385,13 +385,42 @@ main { max-width: 1440px; margin: auto; padding: 16px; }
   box-shadow: 0 8px 30px rgba(233,69,96,.2);
 }
 
+.gallery-card-img {
+  position: relative;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
 .gallery-card img {
   width: 100%;
   aspect-ratio: 4/3;
   object-fit: contain;
   background: #fff;
   display: block;
+  transition: transform .25s;
 }
+
+.gallery-card:hover img { transform: scale(1.04); }
+
+.gallery-expand-btn {
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 34px; height: 34px;
+  background: rgba(0,0,0,.55);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 6px;
+  color: #fff;
+  font-size: .95rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity .15s, background .15s;
+  backdrop-filter: blur(4px);
+}
+
+.gallery-card:hover .gallery-expand-btn { opacity: 1; }
+.gallery-expand-btn:hover { background: var(--accent); }
 
 .gallery-card-body {
   padding: 11px 13px;
@@ -662,6 +691,61 @@ main { max-width: 1440px; margin: auto; padding: 16px; }
   text-align: center;
   padding: 60px;
   color: var(--muted);
+}
+
+/* ── Gallery lightbox ─────────────────────────────────────────────────────── */
+.lightbox-inner {
+  position: relative;
+  max-width: min(92vw, 860px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+#lightbox-img {
+  display: block;
+  width: 100%;
+  max-height: calc(90vh - 72px);
+  object-fit: contain;
+  background: #fff;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 10px; right: 10px;
+  width: 34px; height: 34px;
+  background: rgba(0,0,0,.6);
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: background .15s;
+  backdrop-filter: blur(4px);
+}
+
+.lightbox-close:hover { background: var(--error); }
+
+.lightbox-info {
+  padding: 13px 16px;
+}
+
+.lightbox-title {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.lightbox-meta {
+  font-size: .8rem;
+  color: var(--muted);
+  margin-top: 3px;
 }
 
 /* ── Utilities ────────────────────────────────────────────────────────────── */

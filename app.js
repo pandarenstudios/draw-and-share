@@ -564,16 +564,48 @@ document.getElementById('refresh-btn').addEventListener('click', () => {
 
 function makeCard(data, isoDate) {
   const date = new Date(isoDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const meta = `by ${esc(data.creator)} · ${date}`;
   const card  = document.createElement('div');
   card.className = 'gallery-card';
   card.innerHTML = `
-    <img src="${esc(data.image)}" alt="${esc(data.title)}" loading="lazy">
+    <div class="gallery-card-img">
+      <img src="${esc(data.image)}" alt="${esc(data.title)}" loading="lazy">
+      <button class="gallery-expand-btn" title="View full size">
+        <i class="bi bi-fullscreen"></i>
+      </button>
+    </div>
     <div class="gallery-card-body">
       <div class="gallery-card-title">${esc(data.title)}</div>
-      <div class="gallery-card-meta">by ${esc(data.creator)} · ${date}</div>
+      <div class="gallery-card-meta">${meta}</div>
     </div>
   `;
+
+  const open = () => openLightbox(data.image, data.title, `by ${data.creator} · ${date}`);
+  card.querySelector('.gallery-card-img').addEventListener('click', open);
+
   return card;
+}
+
+// ── Lightbox ──────────────────────────────────────────────────────────────────
+const lightbox = document.getElementById('lightbox');
+
+document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
+lightbox.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+function openLightbox(src, title, meta) {
+  document.getElementById('lightbox-img').src   = src;
+  document.getElementById('lightbox-img').alt   = title;
+  document.getElementById('lightbox-title').textContent = title;
+  document.getElementById('lightbox-meta').textContent  = meta;
+  lightbox.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  lightbox.classList.add('hidden');
+  document.body.style.overflow = '';
+  document.getElementById('lightbox-img').src = '';
 }
 
 function esc(str) {
