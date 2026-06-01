@@ -1,0 +1,8 @@
+# Secrets
+token.txt
+
+# Cloudflare / Wrangler
+.wrangler/
+
+# Claude Code
+.claude/

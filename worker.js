@@ -24,11 +24,30 @@ export default {
       return cors(new Response('Method not allowed', { status: 405 }));
     }
 
+    const contentLength = parseInt(request.headers.get('Content-Length') || '0', 10);
+    if (contentLength > 5_000_000) {
+      return cors(new Response('Payload too large', { status: 413 }));
+    }
+
     let body;
     try {
       body = await request.json();
     } catch {
       return cors(new Response('Invalid JSON', { status: 400 }));
+    }
+
+    // Validate required fields
+    if (typeof body.title !== 'string' || !body.title.trim()) {
+      return cors(new Response('Missing title', { status: 400 }));
+    }
+    if (typeof body.creator !== 'string' || !body.creator.trim()) {
+      return cors(new Response('Missing creator', { status: 400 }));
+    }
+    if (typeof body.image !== 'string' || !body.image.startsWith('data:image/')) {
+      return cors(new Response('Invalid image', { status: 400 }));
+    }
+    if (body.title.length > 200 || body.creator.length > 100) {
+      return cors(new Response('Field too long', { status: 400 }));
     }
 
     const res = await fetch(
