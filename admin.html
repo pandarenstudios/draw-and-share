@@ -13,12 +13,20 @@
                   transition:color .15s, border-color .15s; }
     .admin-tab:hover  { color:var(--fg,#fff); }
     .admin-tab.active { color:var(--accent,#7c6aff); border-bottom-color:var(--accent,#7c6aff); font-weight:600; }
-    .btn-revoke   { background:#b45309; color:#fff; border:none; border-radius:6px; padding:6px 12px;
-                    font-size:.8rem; cursor:pointer; display:flex; align-items:center; gap:4px; }
-    .btn-revoke:hover   { background:#92400e; }
-    .btn-reapprove      { background:#15803d; color:#fff; border:none; border-radius:6px; padding:6px 12px;
-                          font-size:.8rem; cursor:pointer; display:flex; align-items:center; gap:4px; }
+    .btn-revoke    { background:#b45309; color:#fff; border:none; border-radius:6px; padding:6px 12px;
+                     font-size:.8rem; cursor:pointer; display:flex; align-items:center; gap:4px; }
+    .btn-revoke:hover    { background:#92400e; }
+    .btn-reapprove       { background:#15803d; color:#fff; border:none; border-radius:6px; padding:6px 12px;
+                           font-size:.8rem; cursor:pointer; display:flex; align-items:center; gap:4px; }
     .btn-reapprove:hover { background:#166534; }
+    .btn-ban       { background:#7f1d1d; color:#fff; border:none; border-radius:6px; padding:6px 12px;
+                     font-size:.8rem; cursor:pointer; display:flex; align-items:center; gap:4px; }
+    .btn-ban:hover { background:#991b1b; }
+    .ip-tag        { font-size:.7rem; color:var(--muted,#888); margin-top:3px;
+                     display:flex; align-items:center; gap:4px; }
+    .ban-notice    { padding:10px 14px; border-radius:6px; margin-bottom:12px;
+                     background:rgba(127,29,29,.2); border:1px solid #7f1d1d;
+                     font-size:.85rem; color:#fca5a5; }
   </style>
 </head>
 <body>
@@ -57,6 +65,9 @@
         <button class="admin-tab" data-tab="revoked">
           <i class="bi bi-slash-circle"></i> Revoked
         </button>
+        <button class="admin-tab" data-tab="bans">
+          <i class="bi bi-shield-x"></i> Banned IPs
+        </button>
       </div>
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px">
         <span id="submission-count" style="color:var(--muted);font-size:.85rem"></span>
@@ -64,6 +75,7 @@
         <button class="btn-ghost" id="logout-btn" style="font-size:.8rem">Sign out</button>
       </div>
     </div>
+    <div id="ban-notice-area"></div>
     <div class="submission-grid" id="submission-grid">
       <div class="admin-message">Loading submissions…</div>
     </div>
@@ -75,8 +87,8 @@
 <script>
 'use strict';
 
-let adminToken  = sessionStorage.getItem('admin_token') || '';
-let currentTab  = 'pending';
+let adminToken = sessionStorage.getItem('admin_token') || '';
+let currentTab = 'pending';
 
 if (adminToken) tryLogin(adminToken);
 
@@ -113,7 +125,10 @@ function loadTab(tab) {
   if (tab === 'pending')  loadPending();
   if (tab === 'approved') loadApproved();
   if (tab === 'revoked')  loadRevoked();
+  if (tab === 'bans')     loadBans();
 }
+
+// ── Login ─────────────────────────────────────────────────────────────────────
 
 async function tryLogin(token) {
   const fb = document.getElementById('login-feedback');
@@ -137,7 +152,6 @@ async function tryLogin(token) {
 
     adminToken = token;
     sessionStorage.setItem('admin_token', token);
-
     document.getElementById('login-section').classList.add('hidden');
     document.getElementById('admin-panel').classList.remove('hidden');
     loadPending();
@@ -147,22 +161,21 @@ async function tryLogin(token) {
   }
 }
 
+// ── Load tabs ─────────────────────────────────────────────────────────────────
+
 async function loadPending() {
   await loadIssues('pending', 'labels=pending&state=open', 'pending',
-    'No pending submissions — all caught up!',
-    'No valid pending submissions found.');
+    'No pending submissions — all caught up!', 'No valid pending submissions found.');
 }
 
 async function loadApproved() {
   await loadIssues('approved', 'labels=approved&state=open', 'approved',
-    'No approved creations yet.',
-    'No valid approved creations found.');
+    'No approved creations yet.', 'No valid approved creations found.');
 }
 
 async function loadRevoked() {
   await loadIssues('revoked', 'labels=revoked&state=open', 'revoked',
-    'No revoked creations.',
-    'No valid revoked creations found.');
+    'No revoked creations.', 'No valid revoked creations found.');
 }
 
 async function loadIssues(countLabel, query, mode, emptyMsg, invalidMsg) {
@@ -183,9 +196,7 @@ async function loadIssues(countLabel, query, mode, emptyMsg, invalidMsg) {
     if (!res.ok) throw new Error(`GitHub API ${res.status}`);
     const issues = await res.json();
 
-    document.getElementById('submission-count').textContent =
-      `${issues.length} ${countLabel}`;
-
+    document.getElementById('submission-count').textContent = `${issues.length} ${countLabel}`;
     grid.innerHTML = '';
 
     if (!issues.length) {
@@ -197,9 +208,7 @@ async function loadIssues(countLabel, query, mode, emptyMsg, invalidMsg) {
       try {
         const data = JSON.parse(issue.body);
         grid.appendChild(makeCard(issue, data, mode));
-      } catch {
-        // skip malformed issue bodies
-      }
+      } catch { /* skip malformed */ }
     }
 
     if (!grid.children.length) {
@@ -210,44 +219,124 @@ async function loadIssues(countLabel, query, mode, emptyMsg, invalidMsg) {
   }
 }
 
+// ── Banned IPs tab ────────────────────────────────────────────────────────────
+
+async function loadBans() {
+  const grid = document.getElementById('submission-grid');
+  grid.innerHTML = '<div class="admin-message">Loading…</div>';
+
+  try {
+    const res = await fetch(`${CONFIG.workerUrl}admin/bans`,
+      { headers: { 'X-Admin-Token': adminToken } });
+    if (!res.ok) throw new Error(`Failed (${res.status})`);
+    const bans = await res.json();
+
+    document.getElementById('submission-count').textContent = `${bans.length} banned`;
+    grid.innerHTML = '';
+
+    if (!bans.length) {
+      grid.innerHTML = '<div class="admin-message">No banned IPs.</div>';
+      return;
+    }
+
+    for (const ban of bans) grid.appendChild(makeBanCard(ban));
+  } catch (err) {
+    grid.innerHTML = `<div class="admin-message">Error: ${esc(err.message)}</div>`;
+  }
+}
+
+function makeBanCard(ban) {
+  const date = ban.banned_at
+    ? new Date(ban.banned_at).toLocaleDateString('en-US',
+        { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })
+    : 'unknown date';
+
+  const card = document.createElement('div');
+  card.className = 'submission-card';
+  card.id = `ban-${ban.ip.replace(/[.:]/g, '-')}`;
+  card.innerHTML = `
+    <div class="submission-card-body" style="width:100%;padding:16px">
+      <strong style="font-size:1rem">
+        <i class="bi bi-shield-x" style="color:#ef4444"></i> ${esc(ban.ip)}
+      </strong>
+      <span style="margin-top:4px;font-size:.75rem;color:var(--muted)">Banned on ${date}</span>
+      <div class="submission-actions" style="margin-top:12px">
+        <button class="btn-reapprove">
+          <i class="bi bi-shield-check"></i> Unban
+        </button>
+      </div>
+    </div>
+  `;
+
+  card.querySelector('.btn-reapprove').addEventListener('click', () => unbanIP(ban.ip, card));
+  return card;
+}
+
+async function unbanIP(ip, card) {
+  const btn = card.querySelector('.btn-reapprove');
+  btn.disabled = true;
+  btn.textContent = 'Unbanning…';
+
+  try {
+    const res = await fetch(`${CONFIG.workerUrl}admin/ban/${encodeURIComponent(ip)}`, {
+      method: 'DELETE',
+      headers: { 'X-Admin-Token': adminToken },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `Unban failed (${res.status})`);
+    }
+
+    card.style.transition = 'opacity .4s, transform .4s';
+    card.style.opacity    = '0';
+    card.style.transform  = 'scale(.95)';
+    setTimeout(() => { card.remove(); updateCount(); }, 420);
+  } catch (err) {
+    alert(`Unban failed: ${err.message}`);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-shield-check"></i> Unban';
+  }
+}
+
+// ── Cards ─────────────────────────────────────────────────────────────────────
+
 function makeCard(issue, data, mode) {
   const date = new Date(issue.created_at).toLocaleDateString('en-US', {
-    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+    year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit',
   });
+  const ip = data.ip || 'unknown';
+  const banBtn = ip !== 'unknown'
+    ? `<button class="btn-ban" data-action="ban"><i class="bi bi-shield-x"></i> Ban IP</button>`
+    : '';
 
   let actions = '';
   if (mode === 'pending') {
     actions = `
-      <button class="btn-approve" data-action="approve">
-        <i class="bi bi-check-lg"></i> Approve
-      </button>
-      <button class="btn-reject" data-action="reject">
-        <i class="bi bi-x-lg"></i> Reject
-      </button>`;
+      <button class="btn-approve"   data-action="approve"><i class="bi bi-check-lg"></i> Approve</button>
+      <button class="btn-reject"    data-action="reject"><i class="bi bi-x-lg"></i> Reject</button>
+      ${banBtn}`;
   } else if (mode === 'approved') {
     actions = `
-      <button class="btn-revoke" data-action="revoke">
-        <i class="bi bi-slash-circle"></i> Revoke
-      </button>`;
+      <button class="btn-revoke"    data-action="revoke"><i class="bi bi-slash-circle"></i> Revoke</button>
+      ${banBtn}`;
   } else if (mode === 'revoked') {
     actions = `
-      <button class="btn-reapprove" data-action="reapprove">
-        <i class="bi bi-check-lg"></i> Re-approve
-      </button>
-      <button class="btn-reject" data-action="delete">
-        <i class="bi bi-trash"></i> Delete
-      </button>`;
+      <button class="btn-reapprove" data-action="reapprove"><i class="bi bi-check-lg"></i> Re-approve</button>
+      <button class="btn-reject"    data-action="delete"><i class="bi bi-trash"></i> Delete</button>
+      ${banBtn}`;
   }
 
   const card = document.createElement('div');
   card.className = 'submission-card';
-  card.id = `card-${issue.number}`;
+  card.id        = `card-${issue.number}`;
+  card.dataset.ip = ip;
   card.innerHTML = `
     <img src="${esc(data.image)}" alt="${esc(data.title)}" loading="lazy">
     <div class="submission-card-body">
       <strong>${esc(data.title)}</strong>
       <span>by ${esc(data.creator)}</span>
       <span style="margin-top:4px;font-size:.72rem;color:var(--muted)">Submitted ${date}</span>
+      <span class="ip-tag"><i class="bi bi-globe2"></i> ${esc(ip)}</span>
       <div class="submission-actions" style="margin-top:8px">${actions}</div>
     </div>
   `;
@@ -259,15 +348,24 @@ function makeCard(issue, data, mode) {
   return card;
 }
 
+// ── Actions ───────────────────────────────────────────────────────────────────
+
 async function handleAction(issueNumber, action) {
   const card = document.getElementById(`card-${issueNumber}`);
-  const btns = [...card.querySelectorAll('button[data-action]')];
-  const activeBtn = btns.find(b => b.dataset.action === action);
 
+  if (action === 'ban') {
+    await handleBanAction(card);
+    return;
+  }
+
+  const btns      = [...card.querySelectorAll('button[data-action]')];
+  const activeBtn = btns.find(b => b.dataset.action === action);
   const origTexts = btns.map(b => b.innerHTML);
+
   btns.forEach(b => b.disabled = true);
   if (activeBtn) {
-    const labels = { approve: 'Approving…', reject: 'Rejecting…', revoke: 'Revoking…', reapprove: 'Re-approving…', delete: 'Deleting…' };
+    const labels = { approve:'Approving…', reject:'Rejecting…', revoke:'Revoking…',
+                     reapprove:'Re-approving…', delete:'Deleting…' };
     activeBtn.textContent = labels[action] || '…';
   }
 
@@ -298,27 +396,77 @@ async function handleAction(issueNumber, action) {
   }
 }
 
+async function handleBanAction(card) {
+  const ip = card.dataset.ip;
+  if (!ip || ip === 'unknown') {
+    alert('Cannot ban: no IP address recorded for this submission.');
+    return;
+  }
+
+  if (!confirm(`Ban IP ${ip}?\n\nThis will:\n• Block all future submissions from this IP\n• Revoke all their existing pending and approved submissions`)) {
+    return;
+  }
+
+  const btns    = [...card.querySelectorAll('button[data-action]')];
+  const banBtn  = btns.find(b => b.dataset.action === 'ban');
+  const origTexts = btns.map(b => b.innerHTML);
+  btns.forEach(b => b.disabled = true);
+  if (banBtn) banBtn.textContent = 'Banning…';
+
+  try {
+    const res = await fetch(`${CONFIG.workerUrl}admin/ban`, {
+      method:  'POST',
+      headers: { 'X-Admin-Token': adminToken, 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ ip }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `Ban failed (${res.status})`);
+    }
+    const { revoked } = await res.json();
+
+    // Remove every card in the grid that belongs to this IP
+    document.querySelectorAll(`.submission-card[data-ip="${CSS.escape(ip)}"]`).forEach(c => {
+      c.style.transition = 'opacity .4s, transform .4s';
+      c.style.opacity    = '0';
+      c.style.transform  = 'scale(.95)';
+      setTimeout(() => { c.remove(); updateCount(); }, 420);
+    });
+
+    // Show a brief banner
+    showBanNotice(`Banned ${ip} — ${revoked} submission${revoked !== 1 ? 's' : ''} revoked.`);
+  } catch (err) {
+    alert(`Ban failed: ${err.message}`);
+    btns.forEach((b, i) => { b.disabled = false; b.innerHTML = origTexts[i]; });
+  }
+}
+
+function showBanNotice(msg) {
+  const area = document.getElementById('ban-notice-area');
+  const el   = document.createElement('div');
+  el.className   = 'ban-notice';
+  el.textContent = msg;
+  area.appendChild(el);
+  setTimeout(() => el.remove(), 6000);
+}
+
 function updateCount() {
   const remaining = document.querySelectorAll('.submission-card').length;
   document.getElementById('submission-count').textContent = `${remaining} ${currentTab}`;
   if (!remaining) {
-    const msgs = {
-      pending:  'All done — no more pending submissions!',
-      approved: 'No approved creations.',
-      revoked:  'No revoked creations.',
-    };
+    const msgs = { pending:'All done — no more pending submissions!', approved:'No approved creations.',
+                   revoked:'No revoked creations.', bans:'No banned IPs.' };
     document.getElementById('submission-grid').innerHTML =
       `<div class="admin-message">${msgs[currentTab]}</div>`;
   }
 }
 
+// ── GitHub API helper ─────────────────────────────────────────────────────────
+
 async function ghRequest(path, method, body) {
   const res = await fetch(`${CONFIG.workerUrl}admin${path}`, {
     method,
-    headers: {
-      'X-Admin-Token': adminToken,
-      'Content-Type': 'application/json',
-    },
+    headers: { 'X-Admin-Token': adminToken, 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok && res.status !== 204) {
