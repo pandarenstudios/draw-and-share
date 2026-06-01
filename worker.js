@@ -1,5 +1,5 @@
-// Cloudflare Worker — Draw & Share submission proxy
-// Keeps the GitHub token server-side so it never appears in the browser.
+// Cloudflare Worker — Draw & Share submission proxy + admin proxy
+// Keeps all GitHub API calls server-side so CORS never blocks the browser.
 //
 // Environment variables to set in the Cloudflare dashboard:
 //   GITHUB_TOKEN  — fine-grained PAT with Issues read/write on the repo
@@ -8,11 +8,18 @@
 
 export default {
   async fetch(request, env) {
-    // CORS preflight
     if (request.method === 'OPTIONS') {
       return cors(new Response(null, { status: 204 }));
     }
 
+    const url = new URL(request.url);
+
+    // Admin proxy: /admin/* — caller supplies their own PAT via X-Admin-Token
+    if (url.pathname.startsWith('/admin')) {
+      return handleAdmin(request, env, url);
+    }
+
+    // Submission endpoint: POST /
     if (request.method !== 'POST') {
       return cors(new Response('Method not allowed', { status: 405 }));
     }
@@ -46,10 +53,42 @@ export default {
   },
 };
 
+async function handleAdmin(request, env, url) {
+  const adminToken = request.headers.get('X-Admin-Token');
+  if (!adminToken) {
+    return cors(new Response('Unauthorized', { status: 401 }));
+  }
+
+  // Strip /admin prefix → GitHub repos path
+  const ghPath = url.pathname.replace(/^\/admin/, '') || '/';
+  const ghUrl  = `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}${ghPath}${url.search}`;
+
+  const reqBody = (request.method !== 'GET' && request.method !== 'DELETE')
+    ? await request.text()
+    : undefined;
+
+  const res = await fetch(ghUrl, {
+    method:  request.method,
+    headers: {
+      Authorization:  `Bearer ${adminToken}`,
+      'Content-Type': 'application/json',
+      Accept:         'application/vnd.github.v3+json',
+      'User-Agent':   'draw-and-share-worker/1.0',
+    },
+    body: reqBody,
+  });
+
+  const data = await res.text();
+  return cors(new Response(data, {
+    status:  res.status,
+    headers: { 'Content-Type': 'application/json' },
+  }));
+}
+
 function cors(response) {
   const r = new Response(response.body, response);
   r.headers.set('Access-Control-Allow-Origin',  '*');
-  r.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  r.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+  r.headers.set('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
+  r.headers.set('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Token');
   return r;
 }

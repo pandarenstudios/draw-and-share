@@ -79,15 +79,21 @@ async function tryLogin(token) {
   const fb = document.getElementById('login-feedback');
   fb.className = 'submit-feedback hidden';
 
+  if (!CONFIG.workerUrl) {
+    fb.className = 'submit-feedback err';
+    fb.textContent = 'Login failed: workerUrl is not set in config.js.';
+    return;
+  }
+
   try {
-    // Validate token by checking access to the repo's issues
-    const { owner, repo } = CONFIG.github;
     const res = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/issues?per_page=1`,
-      { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github.v3+json' } }
+      `${CONFIG.workerUrl}admin/issues?per_page=1`,
+      { headers: { 'X-Admin-Token': token } }
     );
-    if (!res.ok) throw new Error('Invalid token or no access to the repository.');
-    const user = { login: owner };
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(`GitHub returned ${res.status}: ${body.message || 'no details'}`);
+    }
 
     adminToken = token;
     sessionStorage.setItem('admin_token', token);
@@ -103,10 +109,9 @@ async function tryLogin(token) {
 
 async function loadSubmissions() {
   const grid = document.getElementById('submission-grid');
-  const { owner, repo } = CONFIG.github;
 
-  if (!owner || !repo) {
-    grid.innerHTML = '<div class="admin-message">config.js is not set up (owner / repo missing).</div>';
+  if (!CONFIG.workerUrl) {
+    grid.innerHTML = '<div class="admin-message">config.js is not set up (workerUrl missing).</div>';
     return;
   }
 
@@ -114,8 +119,8 @@ async function loadSubmissions() {
 
   try {
     const res = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/issues?labels=pending&state=open&per_page=100&_=${Date.now()}`,
-      { headers: { Authorization: `Bearer ${adminToken}`, Accept: 'application/vnd.github.v3+json', 'Cache-Control': 'no-cache' } }
+      `${CONFIG.workerUrl}admin/issues?labels=pending&state=open&per_page=100&_=${Date.now()}`,
+      { headers: { 'X-Admin-Token': adminToken } }
     );
     if (!res.ok) throw new Error(`GitHub API ${res.status}`);
     const issues = await res.json();
@@ -182,8 +187,6 @@ async function handleAction(issueNumber, action) {
   const card = document.getElementById(`card-${issueNumber}`);
   const approveBtn = card.querySelector('.btn-approve');
   const rejectBtn  = card.querySelector('.btn-reject');
-  const { owner, repo } = CONFIG.github;
-
   approveBtn.disabled = true;
   rejectBtn.disabled  = true;
   approveBtn.textContent = action === 'approve' ? 'Approving…' : 'Approve';
@@ -191,15 +194,10 @@ async function handleAction(issueNumber, action) {
 
   try {
     if (action === 'approve') {
-      // Add 'approved' label
-      await ghRequest(`/repos/${owner}/${repo}/issues/${issueNumber}/labels`, 'POST',
-        { labels: ['approved'] });
-      // Remove 'pending' label
-      await ghRequest(`/repos/${owner}/${repo}/issues/${issueNumber}/labels/pending`, 'DELETE');
+      await ghRequest(`/issues/${issueNumber}/labels`, 'POST', { labels: ['approved'] });
+      await ghRequest(`/issues/${issueNumber}/labels/pending`, 'DELETE');
     } else {
-      // Close issue (reject — no 'approved' label added)
-      await ghRequest(`/repos/${owner}/${repo}/issues/${issueNumber}`, 'PATCH',
-        { state: 'closed' });
+      await ghRequest(`/issues/${issueNumber}`, 'PATCH', { state: 'closed' });
     }
 
     // Animate removal
@@ -229,12 +227,11 @@ function updateCount() {
 }
 
 async function ghRequest(path, method, body) {
-  const res = await fetch(`https://api.github.com${path}`, {
+  const res = await fetch(`${CONFIG.workerUrl}admin${path}`, {
     method,
     headers: {
-      Authorization: `Bearer ${adminToken}`,
+      'X-Admin-Token': adminToken,
       'Content-Type': 'application/json',
-      Accept: 'application/vnd.github.v3+json',
     },
     body: body ? JSON.stringify(body) : undefined,
   });
