@@ -592,14 +592,17 @@ const lightbox = document.getElementById('lightbox');
 const lightboxZoom  = document.getElementById('lightbox-zoom');
 const lightboxLabel = document.getElementById('lightbox-zoom-label');
 const lightboxImg   = document.getElementById('lightbox-img');
+const lightboxInner = document.querySelector('.lightbox-inner');
+const BASE_WIDTH    = 1290;
 
 document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
 lightbox.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
 
 lightboxZoom.addEventListener('input', () => {
-  const pct = lightboxZoom.value;
-  lightboxImg.style.width   = pct + '%';
+  const pct = parseInt(lightboxZoom.value);
+  const w   = Math.min(BASE_WIDTH * pct / 100, window.innerWidth * 0.98);
+  lightboxInner.style.width = w + 'px';
   lightboxLabel.textContent = pct + '%';
 });
 
@@ -609,15 +612,14 @@ function openLightbox(src, title, meta) {
   document.getElementById('lightbox-title').textContent = title;
   document.getElementById('lightbox-meta').textContent  = meta;
   lightboxZoom.value        = 100;
-  lightboxImg.style.width   = '100%';
+  lightboxInner.style.width = '';
   lightboxLabel.textContent = '100%';
   lightbox.classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
+  lightbox.scrollTop = 0;
 }
 
 function closeLightbox() {
   lightbox.classList.add('hidden');
-  document.body.style.overflow = '';
   lightboxImg.src = '';
 }
 

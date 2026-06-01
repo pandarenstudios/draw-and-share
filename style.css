@@ -694,9 +694,15 @@ main { max-width: 1440px; margin: auto; padding: 16px; }
 }
 
 /* ── Gallery lightbox ─────────────────────────────────────────────────────── */
+#lightbox {
+  align-items: flex-start;
+  overflow: auto;
+}
+
 .lightbox-inner {
   position: relative;
-  max-width: min(96vw, 1290px);
+  width: min(96vw, 1290px);
+  margin: 20px auto;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -704,12 +710,11 @@ main { max-width: 1440px; margin: auto; padding: 16px; }
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 
 .lightbox-img-wrap {
-  overflow: auto;
   background: #fff;
-  max-height: calc(90vh - 120px);
 }
 
 #lightbox-img {
