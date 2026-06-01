@@ -440,6 +440,12 @@ main { max-width: 1440px; margin: auto; padding: 16px; }
   margin-top: 3px;
 }
 
+.ad-banner {
+  margin-bottom: 18px;
+  text-align: center;
+  min-height: 90px;
+}
+
 .gallery-message {
   grid-column: 1 / -1;
   text-align: center;
