@@ -706,12 +706,16 @@ main { max-width: 1440px; margin: auto; padding: 16px; }
   flex-direction: column;
 }
 
+.lightbox-img-wrap {
+  overflow: auto;
+  background: #fff;
+  max-height: calc(90vh - 120px);
+}
+
 #lightbox-img {
   display: block;
   width: 100%;
-  max-height: calc(90vh - 72px);
-  object-fit: contain;
-  background: #fff;
+  height: auto;
 }
 
 .lightbox-close {
@@ -746,6 +750,29 @@ main { max-width: 1440px; margin: auto; padding: 16px; }
   font-size: .8rem;
   color: var(--muted);
   margin-top: 3px;
+}
+
+.lightbox-zoom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.lightbox-zoom input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.lightbox-zoom i { color: var(--muted); font-size: .9rem; }
+
+#lightbox-zoom-label {
+  font-size: .78rem;
+  color: var(--muted);
+  width: 38px;
+  text-align: right;
+  flex-shrink: 0;
 }
 
 /* ── Utilities ────────────────────────────────────────────────────────────── */

@@ -589,15 +589,28 @@ function makeCard(data, isoDate) {
 // ── Lightbox ──────────────────────────────────────────────────────────────────
 const lightbox = document.getElementById('lightbox');
 
+const lightboxZoom  = document.getElementById('lightbox-zoom');
+const lightboxLabel = document.getElementById('lightbox-zoom-label');
+const lightboxImg   = document.getElementById('lightbox-img');
+
 document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
 lightbox.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
 
+lightboxZoom.addEventListener('input', () => {
+  const pct = lightboxZoom.value;
+  lightboxImg.style.width   = pct + '%';
+  lightboxLabel.textContent = pct + '%';
+});
+
 function openLightbox(src, title, meta) {
-  document.getElementById('lightbox-img').src   = src;
-  document.getElementById('lightbox-img').alt   = title;
+  lightboxImg.src = src;
+  lightboxImg.alt = title;
   document.getElementById('lightbox-title').textContent = title;
   document.getElementById('lightbox-meta').textContent  = meta;
+  lightboxZoom.value        = 100;
+  lightboxImg.style.width   = '100%';
+  lightboxLabel.textContent = '100%';
   lightbox.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 }
@@ -605,7 +618,7 @@ function openLightbox(src, title, meta) {
 function closeLightbox() {
   lightbox.classList.add('hidden');
   document.body.style.overflow = '';
-  document.getElementById('lightbox-img').src = '';
+  lightboxImg.src = '';
 }
 
 function esc(str) {
