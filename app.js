@@ -406,6 +406,48 @@ document.getElementById('save-btn').addEventListener('click', () => {
   a.click();
 });
 
+// ── Canvas resize ─────────────────────────────────────────────────────────────
+let currentSize = '640x480';
+
+document.getElementById('canvas-size').addEventListener('change', e => {
+  if (e.target.value === 'custom') {
+    document.getElementById('custom-size-inputs').classList.remove('hidden');
+  } else {
+    document.getElementById('custom-size-inputs').classList.add('hidden');
+    const [w, h] = e.target.value.split('x').map(Number);
+    applyResize(w, h, e.target.value);
+  }
+});
+
+document.getElementById('apply-size').addEventListener('click', () => {
+  const w = parseInt(document.getElementById('custom-w').value, 10);
+  const h = parseInt(document.getElementById('custom-h').value, 10);
+  if (!w || !h || w < 50 || h < 50 || w > 3840 || h > 2160) {
+    alert('Please enter a width between 50–3840 and height between 50–2160.');
+    return;
+  }
+  applyResize(w, h, 'custom');
+});
+
+function applyResize(w, h, sizeKey) {
+  if (S.undoStack.length > 1) {
+    if (!confirm(`Resize canvas to ${w} × ${h}?\nThis will clear your current drawing.`)) {
+      document.getElementById('canvas-size').value = currentSize;
+      return;
+    }
+  }
+  mainCanvas.width     = w;
+  mainCanvas.height    = h;
+  overlayCanvas.width  = w;
+  overlayCanvas.height = h;
+  ctx.fillStyle = S.bg;
+  ctx.fillRect(0, 0, w, h);
+  S.undoStack = [];
+  S.redoStack = [];
+  pushUndo();
+  currentSize = sizeKey;
+}
+
 // Keyboard shortcuts
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;

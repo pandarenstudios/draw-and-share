@@ -98,6 +98,27 @@
           </button>
         </div>
 
+        <div class="tool-group">
+          <div class="tool-group-label">Canvas Size</div>
+          <select id="canvas-size" class="toolbar-select">
+            <option value="640x480">640 × 480</option>
+            <option value="800x600">800 × 600</option>
+            <option value="1280x720">1280 × 720</option>
+            <option value="1920x1080">1920 × 1080</option>
+            <option value="512x512">512 × 512</option>
+            <option value="256x256">256 × 256</option>
+            <option value="custom">Custom…</option>
+          </select>
+          <div id="custom-size-inputs" class="custom-size-inputs hidden">
+            <div class="custom-size-row">
+              <input type="number" id="custom-w" min="50" max="3840" value="640" class="dim-input">
+              <span class="dim-sep">×</span>
+              <input type="number" id="custom-h" min="50" max="2160" value="480" class="dim-input">
+            </div>
+            <button class="act-btn" id="apply-size" style="justify-content:center;margin-top:4px">Apply</button>
+          </div>
+        </div>
+
       </aside>
 
       <!-- Canvas -->

@@ -287,6 +287,46 @@ main { max-width: 1440px; margin: auto; padding: 16px; }
 
 .act-btn.submit:hover { background: #c0304e; }
 
+.toolbar-select {
+  width: 100%;
+  padding: 6px 4px;
+  background: var(--border);
+  border: 1.5px solid transparent;
+  border-radius: 4px;
+  color: var(--text);
+  font-size: .75rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.toolbar-select:focus { outline: none; border-color: var(--accent2); }
+
+.custom-size-inputs { margin-top: 6px; }
+
+.custom-size-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dim-input {
+  width: 0;
+  flex: 1;
+  padding: 5px 4px;
+  background: var(--border);
+  border: 1.5px solid transparent;
+  border-radius: 4px;
+  color: var(--text);
+  font-size: .75rem;
+  font-family: inherit;
+  text-align: center;
+  min-width: 0;
+}
+
+.dim-input:focus { outline: none; border-color: var(--accent2); }
+
+.dim-sep { font-size: .75rem; color: var(--muted); flex-shrink: 0; }
+
 /* ── Canvas wrapper ───────────────────────────────────────────────────────── */
 .canvas-area {
   flex: 1;
@@ -298,12 +338,10 @@ main { max-width: 1440px; margin: auto; padding: 16px; }
 .canvas-wrap {
   position: relative;
   display: inline-block;
+  align-self: flex-start;
   border: 2px solid var(--border);
   border-radius: 4px;
   box-shadow: var(--shadow);
-  background:
-    repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%)
-    0 0 / 12px 12px;
   line-height: 0;
 }
 
